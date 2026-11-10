@@ -68,7 +68,7 @@ export function renderSpending({ payments, start, end, agent, apiCost, rangeLabe
                 h('div', { class: 'mix-notes' },
                     note('Paid', money(paid)),
                     note('Usage at API prices', money(apiCost), 'ccusage estimate for the same range and agents'),
-                    note('API value per $1', paid > 0 && apiCost > 0 ? `$${(apiCost / paid).toFixed(1)}` : '—'),
+                    note('API value per $1', paid > 0 && apiCost > 0 ? money(apiCost / paid) : '—'),
                 ),
             ),
             h('div', null,
