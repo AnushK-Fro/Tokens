@@ -134,7 +134,7 @@ pub async fn record_report(pool: &MySqlPool, source: &Source, rows: &[ReportRow]
     Ok(outcome)
 }
 
-async fn upsert_source(tx: &mut Transaction<'_, MySql>, source: &Source, seen_at: DateTime<Utc>) -> sqlx::Result<()> {
+pub(crate) async fn upsert_source(tx: &mut Transaction<'_, MySql>, source: &Source, seen_at: DateTime<Utc>) -> sqlx::Result<()> {
     // Labels follow the most recent sighting; assignments run left to right, so last_seen_at
     // is compared before it is moved forward.
     sqlx::query(

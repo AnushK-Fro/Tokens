@@ -17,18 +17,7 @@ pub async fn accept(State(state): State<AppState>, headers: HeaderMap, body: Byt
     let payload: Value = serde_json::from_slice(&body).map_err(|_| AppError::Unprocessable("Invalid JSON".to_owned()))?;
     let rows = ingest::parse(&payload).map_err(|error| AppError::Unprocessable(error.to_string()))?;
 
-    let source = Source {
-        id: header(&headers, "x-usage-source-id"),
-        name: clean_label(&header(&headers, "x-usage-source-name"), 160),
-        agent: header(&headers, "x-usage-agent").to_ascii_lowercase(),
-        project: clean_label(&header(&headers, "x-usage-project"), 160),
-    };
-
-    if !valid_identifier(&source.id, 128) || !valid_identifier(&source.agent, 32) {
-        return Err(AppError::Unprocessable("Invalid X-Usage-Source-Id or X-Usage-Agent header".to_owned()));
-    }
-
-    let source = Source { name: if source.name.is_empty() { "devcontainer".to_owned() } else { source.name }, ..source };
+    let source = source(&headers)?;
 
     if header(&headers, "x-usage-scope") == "full" {
         tracing::debug!(source = %source.id, "X-Usage-Scope: full is ignored; stored usage is never cleared");
@@ -51,7 +40,23 @@ pub async fn accept(State(state): State<AppState>, headers: HeaderMap, body: Byt
     })))
 }
 
-fn authorize(state: &AppState, headers: &HeaderMap) -> Result<(), AppError> {
+/// The sending machine and agent, from the `X-Usage-*` headers.
+pub(super) fn source(headers: &HeaderMap) -> Result<Source, AppError> {
+    let source = Source {
+        id: header(headers, "x-usage-source-id"),
+        name: clean_label(&header(headers, "x-usage-source-name"), 160),
+        agent: header(headers, "x-usage-agent").to_ascii_lowercase(),
+        project: clean_label(&header(headers, "x-usage-project"), 160),
+    };
+
+    if !valid_identifier(&source.id, 128) || !valid_identifier(&source.agent, 32) {
+        return Err(AppError::Unprocessable("Invalid X-Usage-Source-Id or X-Usage-Agent header".to_owned()));
+    }
+
+    Ok(Source { name: if source.name.is_empty() { "devcontainer".to_owned() } else { source.name }, ..source })
+}
+
+pub(super) fn authorize(state: &AppState, headers: &HeaderMap) -> Result<(), AppError> {
     let Some(expected) = state.config.ingest_token.as_deref() else {
         return Err(AppError::Unauthorized);
     };
@@ -68,6 +73,6 @@ fn authorize(state: &AppState, headers: &HeaderMap) -> Result<(), AppError> {
     }
 }
 
-fn header(headers: &HeaderMap, name: &str) -> String {
+pub(super) fn header(headers: &HeaderMap, name: &str) -> String {
     headers.get(name).and_then(|value| value.to_str().ok()).unwrap_or("").trim().to_owned()
 }

@@ -1,5 +1,6 @@
 mod assets;
 mod docs;
+mod events;
 mod health;
 mod ingest;
 mod summary;
@@ -24,6 +25,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/", get(docs::show))
         .route("/api/summary", get(summary::show))
         .route("/api/ingest", post(ingest::accept))
+        .route("/api/events", post(events::accept))
         .route("/api/health", get(health::check))
         // The PHP version answered on `?api=…` (and took a bare POST as an ingest);
         // old sync scripts keep working unchanged.

@@ -128,6 +128,48 @@ npx ccusage@latest claude daily --json | curl -fsS -X POST '{{BASE_URL}}/api/ing
   --data-binary @-
 ```
 
+## POST /api/events
+
+Per-request usage from `tokens-cli`, kept for analysis (the dashboard reads the daily rows). Same
+`Authorization` and `X-Usage-*` headers as `/api/ingest`.
+
+Body: `{"events": [...]}`, at most 5000 per request.
+
+```json
+{
+  "events": [
+    {
+      "id": "msg_011Cgt…:req_011Cgt…",
+      "timestamp": "2026-11-10T04:55:38.854Z",
+      "model": "claude-opus-5-5",
+      "provider": "anthropic",
+      "session_id": "09123004-bc99-400d-8693-5f1b4dd8faf6",
+      "project": "/workspaces/AdvinServers-Panels/Convoy",
+      "input_tokens": 2,
+      "output_tokens": 767,
+      "cache_read_tokens": 132547,
+      "cache_creation_tokens": 808,
+      "cache_creation_5m_tokens": 0,
+      "cache_creation_1h_tokens": 808,
+      "reasoning_tokens": 0,
+      "total_tokens": 134124,
+      "cost_usd": 0.0476,
+      "cost_source": "calculated",
+      "details": { "version": "2.1.322", "usage": { "service_tier": "standard" } }
+    }
+  ]
+}
+```
+
+- `id` is unique per agent (Claude: message id + request id; Codex: response id; Kimi and older
+  Codex: file and line). The same request sent again, from any source, is one row.
+- `cost_source`: `log` (the agent wrote the cost), `calculated` (LiteLLM prices) or `none`.
+- `details` is everything else the log line had about the request, never prompts or replies.
+- Rows are stored in `usage_events` and merge like daily rows: per-column maximum, never deleted.
+
+Response: `{"ok": true, "events": 1000, "written": 12}` (`written` is MariaDB's affected-row
+count: 1 per new row, 2 per raised row).
+
 ## Legacy
 
 The PHP version's entry points still work on `/`, `/index.php` and `/tokens.php`: a `POST` with
