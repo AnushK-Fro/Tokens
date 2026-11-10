@@ -1,0 +1,75 @@
+# Tokens behind Caddy (automatic HTTPS for TOKENS_HOST) with MariaDB.
+#
+#   cp .env.example .env    # set TOKENS_HOST, DB_PASSWORD, INGEST_TOKEN
+#   docker compose up -d --build    # first start seeds MariaDB from seed/tokens.sql
+#
+# TOKENS_HOST's DNS must point at this machine, with ports 80 and 443 reachable, for Caddy to
+# get a certificate.
+
+services:
+  db:
+    # MariaDB with seed/tokens.sql (schema + all usage so far) baked into its init directory. It
+    # loads on the first start with an empty `db` volume only; later starts keep the volume as is.
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM mariadb:11.8
+        COPY seed/ /docker-entrypoint-initdb.d/
+    image: tokens-db:latest
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: tokens
+      MARIADB_USER: tokens
+      MARIADB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      MARIADB_RANDOM_ROOT_PASSWORD: "1"
+    volumes:
+      - db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  tokens:
+    build: .
+    image: tokens:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: mysql://tokens:${DB_PASSWORD}@db:3306/tokens
+      BIND: 0.0.0.0:8787
+      INGEST_TOKEN: ${INGEST_TOKEN:?set INGEST_TOKEN in .env}
+      TOKEN_USAGE_TIMEZONE: ${TOKEN_USAGE_TIMEZONE:-UTC}
+    expose:
+      - "8787"
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    depends_on:
+      - tokens
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+      - "${HTTPS_PORT:-443}:443/udp"
+    configs:
+      - source: caddyfile
+        target: /etc/caddy/Caddyfile
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+
+configs:
+  caddyfile:
+    content: |
+      ${TOKENS_HOST:?set TOKENS_HOST in .env, e.g. tokens.anush.me} {
+          reverse_proxy tokens:8787
+      }
+
+volumes:
+  db:
+  caddy_data:
+  caddy_config:

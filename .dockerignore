@@ -1,0 +1,10 @@
+target
+.git
+.env
+*.csv
+*.sql
+!seed/tokens.sql
+*.sqlite*
+*.tar.gz
+tokens.php
+.playwright-mcp

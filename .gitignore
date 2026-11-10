@@ -1,0 +1,12 @@
+/target
+.env
+# Old PHP version: has the ingest token hardcoded. Kept on disk, never committed.
+/tokens.php
+# Raw exports and local databases (the committed seed is seed/tokens.sql).
+*.csv
+*.tar.gz
+*.sqlite
+*.sqlite-*
+.playwright-mcp/
+# The seed dump lists machine and project names; generate it locally (scripts/refresh-seed.sh).
+/seed/*.sql

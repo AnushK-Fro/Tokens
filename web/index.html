@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <title>Token usage</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Crect width='8' height='8' fill='%234a4278'/%3E%3Crect x='2' y='2' width='4' height='4' fill='%23c6b6f8'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="/css/app.css">
+    <script type="module" src="/js/main.js"></script>
+</head>
+<body>
+<main class="page">
+    <header class="masthead">
+        <div class="masthead-title">
+            <h1>Token usage</h1>
+            <p class="lede">Claude Code, Codex, OpenCode and Kimi, priced at API rates.</p>
+        </div>
+        <p class="status" id="status" aria-live="polite">Loading…</p>
+    </header>
+
+    <nav class="filters" aria-label="Filters">
+        <div class="segmented" id="range-filter" role="group" aria-label="Time range"></div>
+        <div class="segmented" id="agent-filter" role="group" aria-label="Agent"></div>
+    </nav>
+
+    <section class="card kpis" id="kpis" aria-label="Totals"></section>
+
+    <div class="grid-2">
+        <section class="card" aria-labelledby="composition-title">
+            <header class="card-head">
+                <div>
+                    <h2 id="composition-title">Token mix</h2>
+                    <p class="card-sub" id="composition-sub"></p>
+                </div>
+            </header>
+            <div id="composition"></div>
+        </section>
+
+        <section class="card" aria-labelledby="agents-title">
+            <header class="card-head">
+                <div>
+                    <h2 id="agents-title">Agents</h2>
+                    <p class="card-sub">Share of tokens in range</p>
+                </div>
+            </header>
+            <div id="agents"></div>
+        </section>
+    </div>
+
+    <section class="card" aria-labelledby="trend-title">
+        <header class="card-head">
+            <div>
+                <h2 id="trend-title">Over time</h2>
+                <p class="card-sub" id="trend-sub"></p>
+            </div>
+            <div class="segmented segmented-small" id="trend-metric" role="group" aria-label="Chart metric"></div>
+        </header>
+        <div class="legend" id="trend-legend"></div>
+        <div class="chart" id="trend"></div>
+    </section>
+
+    <section class="card" aria-labelledby="heatmap-title">
+        <header class="card-head">
+            <div>
+                <h2 id="heatmap-title">Last 53 weeks</h2>
+                <p class="card-sub">Daily token volume, all agents</p>
+            </div>
+            <div class="ramp" aria-hidden="true">
+                <span>Less</span><i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i><span>More</span>
+            </div>
+        </header>
+        <div class="heatmap-scroll"><div class="heatmap" id="heatmap"></div></div>
+    </section>
+
+    <section class="card card-flush" aria-labelledby="models-title">
+        <header class="card-head card-head-padded">
+            <div>
+                <h2 id="models-title">Models</h2>
+                <p class="card-sub">Select a row for its day-by-day detail</p>
+            </div>
+        </header>
+        <div class="table-scroll">
+            <table class="models" id="models"></table>
+        </div>
+    </section>
+
+    <section class="card" aria-labelledby="days-title">
+        <header class="card-head">
+            <div>
+                <h2 id="days-title">Day by day</h2>
+                <p class="card-sub">Every model, every day in range</p>
+            </div>
+        </header>
+        <div class="days" id="days"></div>
+    </section>
+
+    <footer class="footer">
+        <p>Costs are ccusage API-price estimates, not subscription charges. Stored usage only ever grows; nothing ccusage forgets is lost here.</p>
+        <p id="footer-meta"></p>
+        <p><a href="/api">API docs</a></p>
+    </footer>
+</main>
+<div class="tooltip" id="tooltip" role="tooltip" hidden></div>
+</body>
+</html>
