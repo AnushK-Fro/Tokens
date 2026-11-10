@@ -91,8 +91,8 @@ cargo run --release -p tokens -- import-sqlite /path/to/token-usage.sqlite
 ```
 
 It goes through the same merge, so it is safe before or after syncs start arriving, and re-running
-it changes nothing. Old sync clients keep working: a `POST` to `/`, `/index.php` or `/tokens.php`
-(with `?api=ingest` or no query) is still accepted as an ingest.
+it changes nothing. The PHP version's entry points (`/index.php`, `/tokens.php`, `?api=…`) are not
+served; sync clients post to `/api/ingest`.
 
 ## Importing Cursor usage
 
@@ -153,7 +153,7 @@ see `crates/cli/README.md`.
 
 The devcontainer's `.devcontainer/token-usage-sync.py` still works: it runs
 `ccusage daily --json --by-agent`, splits the days per agent and POSTs each to `TOKEN_USAGE_URL`
-every `TOKEN_USAGE_INTERVAL` seconds. Both use the same per-agent source id file
+(`https://<TOKENS_HOST>/api/ingest`) every `TOKEN_USAGE_INTERVAL` seconds. Both use the same per-agent source id file
 (`<agent folder>/.token-usage-source-id`), so running both on one machine never double counts.
 
 Each report must cover one agent. Plain `ccusage daily --json` in v20+ merges every agent into

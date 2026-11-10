@@ -184,9 +184,3 @@ Body: `{"events": [...]}`, at most 5000 per request.
 
 Response: `{"ok": true, "events": 1000, "written": 12}` (`written` is MariaDB's affected-row
 count: 1 per new row, 2 per raised row).
-
-## Legacy
-
-The PHP version's entry points still work on `/`, `/index.php` and `/tokens.php`: a `POST` with
-`?api=ingest` or no query at all is an ingest, and `?api=health|summary` answer as above, so old
-sync scripts need no change. `?api=summary` returns the shape above, not the PHP one.
