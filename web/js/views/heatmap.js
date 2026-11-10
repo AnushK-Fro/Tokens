@@ -57,12 +57,18 @@ export function renderHeatmap(rows, today) {
         cells.push(h('span', { class: launchOn.has(day) ? `l${level} launch-day` : `l${level}`, tabindex: -1, dataset: { tip: day } }));
     }
 
-    const lines = markers.map((marker) => {
-        const node = h('div', { class: 'launch' },
-            h('b', { class: marker.flip ? 'launch-label flip' : 'launch-label', text: marker.label, dataset: { tip: marker.day } }));
-        // CSSOM, not a style attribute: the CSP (style-src 'self') blocks inline style attributes.
-        node.style.setProperty('--col', marker.col);
-        node.style.setProperty('--row', marker.row);
+    // One line per day: same-day launches stack their labels on a single hairline.
+    const lines = [...groupBy(markers, (marker) => marker.day).values()].map((group) => {
+        const top = Math.min(...group.map((marker) => marker.row));
+        const labels = group.map((marker) => {
+            const label = h('b', { class: marker.flip ? 'launch-label flip' : 'launch-label', text: marker.label, dataset: { tip: marker.day } });
+            // CSSOM, not a style attribute: the CSP (style-src 'self') blocks inline style attributes.
+            label.style.setProperty('--stack', marker.row - top);
+            return label;
+        });
+        const node = h('div', { class: 'launch' }, ...labels);
+        node.style.setProperty('--col', group[0].col);
+        node.style.setProperty('--row', top);
         return node;
     });
 
