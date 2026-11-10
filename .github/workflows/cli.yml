@@ -1,0 +1,85 @@
+name: tokens-cli
+
+on:
+  push:
+    branches: [main]
+    paths: ["cli/**", ".github/workflows/cli.yml"]
+    tags: ["cli-v*"]
+  pull_request:
+    paths: ["cli/**", ".github/workflows/cli.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            binary: tokens-cli
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary: tokens-cli.exe
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: cli
+          key: ${{ matrix.target }}
+
+      - name: Install musl tools
+        if: contains(matrix.target, 'musl')
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
+      - name: Test
+        if: "!contains(matrix.target, 'musl')"
+        run: cargo test --locked
+
+      - name: Build
+        run: cargo build --release --locked --target ${{ matrix.target }}
+
+      - name: Package
+        shell: bash
+        run: |
+          mkdir -p ../dist
+          cp target/${{ matrix.target }}/release/${{ matrix.binary }} ../dist/
+          cd ../dist
+          if [[ "${{ matrix.target }}" == *windows* ]]; then
+            7z a tokens-cli-${{ matrix.target }}.zip ${{ matrix.binary }}
+          else
+            tar czf tokens-cli-${{ matrix.target }}.tar.gz ${{ matrix.binary }}
+          fi
+          rm ${{ matrix.binary }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tokens-cli-${{ matrix.target }}
+          path: dist/*
+
+  release:
+    name: Release
+    if: startsWith(github.ref, 'refs/tags/cli-v')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
