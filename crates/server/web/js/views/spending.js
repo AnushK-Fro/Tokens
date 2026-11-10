@@ -81,16 +81,31 @@ export function renderSpending({ payments, start, end, agent, apiCost, rangeLabe
                     ),
                     h('span', { class: 'payment-amount', text: money(payment.amount_usd) }),
                 ))),
-                shown.length < scoped.length
-                    ? h('button', {
-                        class: 'more',
-                        type: 'button',
-                        text: `Show ${Math.min(PAGE, scoped.length - shown.length)} more`,
-                        onclick: () => {
-                            ui.shown = shown.length + PAGE;
-                            onChange();
-                        },
-                    })
+                scoped.length > PAGE
+                    ? h('div', { class: 'more-row' },
+                        shown.length < scoped.length
+                            ? h('button', {
+                                class: 'more',
+                                type: 'button',
+                                text: `Show ${Math.min(PAGE, scoped.length - shown.length)} more`,
+                                onclick: () => {
+                                    ui.shown = shown.length + PAGE;
+                                    onChange();
+                                },
+                            })
+                            : null,
+                        shown.length > PAGE
+                            ? h('button', {
+                                class: 'more',
+                                type: 'button',
+                                text: 'Show less',
+                                onclick: () => {
+                                    ui.shown = PAGE;
+                                    onChange();
+                                },
+                            })
+                            : null,
+                    )
                     : null,
             ),
         ),
