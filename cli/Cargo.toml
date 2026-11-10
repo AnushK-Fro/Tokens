@@ -1,0 +1,34 @@
+[package]
+name = "tokens-cli"
+version = "0.1.0"
+edition = "2021"
+description = "Reads Claude Code, Codex, Kimi and OpenCode usage from local logs, prints it, and pushes it to a Tokens server"
+publish = false
+
+[[bin]]
+name = "tokens-cli"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock", "serde", "std"] }
+chrono-tz = "0.10"
+clap = { version = "4", features = ["derive", "env"] }
+comfy-table = "7"
+dirs = "6"
+gethostname = "1"
+iana-time-zone = "0.1"
+rayon = "1"
+rusqlite = { version = "0.32", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+ureq = "2"
+uuid = { version = "1", features = ["v4"] }
+walkdir = "2"
+
+[profile.release]
+lto = "thin"
+strip = true
+
+# Standalone: not part of the server's build.
+[workspace]

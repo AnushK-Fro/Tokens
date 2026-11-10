@@ -10,3 +10,4 @@
 .playwright-mcp/
 # The seed dump lists machine and project names; generate it locally (scripts/refresh-seed.sh).
 /seed/*.sql
+/cli/target
