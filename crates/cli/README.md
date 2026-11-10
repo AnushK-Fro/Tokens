@@ -6,7 +6,7 @@ like ccusage. `push` sends it to a Tokens server.
 Download a build from the repository's Actions or Releases page (Linux and Windows), or build it:
 
 ```sh
-cargo build --release   # target/release/tokens-cli
+cargo build --release -p tokens-cli   # target/release/tokens-cli
 ```
 
 ## Use

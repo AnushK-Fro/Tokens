@@ -3,10 +3,10 @@ name: tokens-cli
 on:
   push:
     branches: [main]
-    paths: ["cli/**", ".github/workflows/cli.yml"]
+    paths: ["crates/cli/**", "Cargo.lock", ".github/workflows/cli.yml"]
     tags: ["cli-v*"]
   pull_request:
-    paths: ["cli/**", ".github/workflows/cli.yml"]
+    paths: ["crates/cli/**", "Cargo.lock", ".github/workflows/cli.yml"]
   workflow_dispatch:
 
 permissions:
@@ -26,9 +26,6 @@ jobs:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             binary: tokens-cli.exe
-    defaults:
-      run:
-        working-directory: cli
     steps:
       - uses: actions/checkout@v4
 
@@ -38,7 +35,6 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: cli
           key: ${{ matrix.target }}
 
       - name: Install musl tools
@@ -47,17 +43,17 @@ jobs:
 
       - name: Test
         if: "!contains(matrix.target, 'musl')"
-        run: cargo test --locked
+        run: cargo test --locked -p tokens-cli
 
       - name: Build
-        run: cargo build --release --locked --target ${{ matrix.target }}
+        run: cargo build --release --locked -p tokens-cli --target ${{ matrix.target }}
 
       - name: Package
         shell: bash
         run: |
-          mkdir -p ../dist
-          cp target/${{ matrix.target }}/release/${{ matrix.binary }} ../dist/
-          cd ../dist
+          mkdir -p dist
+          cp target/${{ matrix.target }}/release/${{ matrix.binary }} dist/
+          cd dist
           if [[ "${{ matrix.target }}" == *windows* ]]; then
             7z a tokens-cli-${{ matrix.target }}.zip ${{ matrix.binary }}
           else

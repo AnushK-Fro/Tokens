@@ -20,29 +20,31 @@ not at all. This app treats stored usage as **append-only and monotonic**:
 ## Layout
 
 ```
-src/
-  main.rs            CLI: serve | migrate | import-sqlite <path> | import-cursor-csv <path>
-  config.rs          env config (.env)
-  db.rs              pool + embedded migrations
-  usage.rs           Counts and the monotonic merge rule (unit-tested)
-  ingest/report.rs   ccusage JSON → per-day, per-model rows (unit-tested)
-  store/ingest.rs    daily writer: record_report()
-  store/events.rs    per-request writer: record_events() (/api/events)
-  store/summary.rs   read-only queries for the dashboard
-  routes/            /api, /api/summary, /api/ingest, /api/events, /api/health, static assets
-  import.rs          one-off import of the PHP version's SQLite file
-  import_cursor.rs   import of a Cursor usage-events CSV export (unit-tested)
-migrations/          schema + triggers
-docs/API.md          served at GET /api (Markdown, for agents)
-cli/                 tokens-cli, the sync client (own crate, not part of the server build)
-web/                 index.html, css/, js/ (views/ per panel), fonts/ (Geist, Geist Mono; OFL)
+crates/server/       the dashboard and API (binary `tokens`)
+  src/
+    main.rs            CLI: serve | migrate | import-sqlite <path> | import-cursor-csv <path>
+    config.rs          env config (.env)
+    db.rs              pool + embedded migrations
+    usage.rs           Counts and the monotonic merge rule (unit-tested)
+    ingest/report.rs   ccusage JSON → per-day, per-model rows (unit-tested)
+    store/ingest.rs    daily writer: record_report()
+    store/events.rs    per-request writer: record_events() (/api/events)
+    store/summary.rs   read-only queries for the dashboard
+    routes/            /api, /api/summary, /api/ingest, /api/events, /api/health, static assets
+    import.rs          one-off import of the PHP version's SQLite file
+    import_cursor.rs   import of a Cursor usage-events CSV export (unit-tested)
+  migrations/          schema + triggers
+  docs/API.md          served at GET /api (Markdown, for agents)
+  web/                 index.html, css/, js/ (views/ per panel), fonts/ (Geist, Geist Mono; OFL)
+crates/cli/          tokens-cli, the sync client (binary `tokens-cli`)
+seed/, scripts/      database seed (local only) and the script that makes it
 ```
 
 ## Run
 
 ```sh
 cp .env.example .env      # set DATABASE_URL and INGEST_TOKEN
-cargo run --release       # creates tables on start, serves on BIND (default 127.0.0.1:8787)
+cargo run --release -p tokens   # creates tables on start, serves on BIND (default 127.0.0.1:8787)
 ```
 
 MariaDB setup:
@@ -85,7 +87,7 @@ docker compose run --rm -v "$PWD/usage-events.csv:/import.csv:ro" tokens import-
 ## Moving from tokens.php
 
 ```sh
-cargo run --release -- import-sqlite /path/to/token-usage.sqlite
+cargo run --release -p tokens -- import-sqlite /path/to/token-usage.sqlite
 ```
 
 It goes through the same merge, so it is safe before or after syncs start arriving, and re-running
@@ -97,14 +99,14 @@ it changes nothing. Old sync clients keep working: a `POST` to `/`, `/index.php`
 Cursor isn't covered by `ccusage`. Export usage from cursor.com/dashboard (Usage → Export CSV) and:
 
 ```sh
-cargo run --release -- import-cursor-csv "usage-events-2026-11-10.csv" [--source <id>]
+cargo run --release -p tokens -- import-cursor-csv "usage-events-2026-11-10.csv" [--source <id>]
 ```
 
 Requests are summed per day (in `TOKEN_USAGE_TIMEZONE`) and model under agent `cursor`, then go
 through the same monotonic merge, so overlapping or repeated exports are safe and a newer export
 only raises the days it extends. `Input (w/ Cache Write)` is stored as cache-creation tokens,
 `Input (w/o Cache Write)` as input. Plan usage (`Included` / `Free`) has no dollar figure, so each
-request is priced at Cursor's published API rates (`rate()` in `src/import_cursor.rs`, from
+request is priced at Cursor's published API rates (`rate()` in `crates/server/src/import_cursor.rs`, from
 cursor.com/docs/models): Grok 4.7 prompts over 256k tokens bill the whole request at 2×; Grok Bot,
 which has no published rate, is estimated at Grok 4.7; `auto` stays at $0. Costs only ever rise, so
 re-importing after a rate change can raise a stored cost but never lower it. Requests marked
@@ -116,11 +118,11 @@ In use: `cursor-usage-export` (default) and `cursor-usage-export-2`.
 
 ## Syncing
 
-`cli/` is `tokens-cli`, a standalone client that reads Claude Code, Codex, Kimi and OpenCode logs
+`crates/cli` is `tokens-cli`, a client that reads Claude Code, Codex, Kimi and OpenCode logs
 itself (no ccusage or Node needed), prints a ccusage-style table, and with `push` sends each
 agent's daily totals to `/api/ingest` and every request to `/api/events` (`usage_events`, kept for
 analysis beyond the dashboard). Linux and Windows builds come from `.github/workflows/cli.yml`;
-see `cli/README.md`.
+see `crates/cli/README.md`.
 
 The devcontainer's `.devcontainer/token-usage-sync.py` still works: it runs
 `ccusage daily --json --by-agent`, splits the days per agent and POSTs each to `TOKEN_USAGE_URL`
