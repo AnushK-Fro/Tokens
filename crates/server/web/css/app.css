@@ -191,20 +191,25 @@ h2 { font: 500 15px/1.3 var(--font-sans); color: var(--highlight); }
 
 /*
  * A pixel shark lying diagonally over the card's top-right corner, drawn on the pixel grid already
- * at 45 degrees so nothing is rotated. The sprite is 54 x 49 pixels with the middle of the body at
- * (23, 21); that point always sits on the corner. Near the window edge the tail is cut off by the
- * body's overflow-x: clip rather than moving the shark in, so the corner stays covered.
+ * at 45 degrees so nothing is rotated. The sprite is 54 x 49 pixels and (--ax, --ay) is the sprite
+ * pixel that sits on the corner: the middle of the body when there is room, otherwise the shark
+ * slides up and left along its body until the corner is under the base of the tail, so the whole
+ * shark stays inside the window. The html/body clip is only a safety net.
  */
-.kpis-corner { position: relative; --px: 1.5px; }
+.kpis-corner { position: relative; --px: 1.5px; --ax: 23; --ay: 21; }
 
 .shark {
     position: absolute;
-    top: calc(-21 * var(--px));
-    right: calc(-31 * var(--px));
+    top: calc(-1 * var(--ay) * var(--px));
+    right: calc((var(--ax) - 54) * var(--px));
     width: calc(54 * var(--px));
     height: calc(49 * var(--px));
     image-rendering: pixelated;
     pointer-events: none;
+}
+
+@media (max-width: 1239px) {
+    .kpis-corner { --ax: 38; --ay: 34; }
 }
 
 @media (max-width: 719px) {
@@ -393,6 +398,13 @@ h2 { font: 500 15px/1.3 var(--font-sans); color: var(--highlight); }
 .launch-label.flip { left: auto; right: 5px; }
 .launch-label:hover { color: var(--text); }
 .heatmap span.launch-day { outline: 1px solid var(--muted); outline-offset: 1px; }
+
+/* Too narrow for the labels to sit apart on phones, so no launch markers there. */
+@media (max-width: 719px) {
+    .heatmap.has-launches { padding-top: 0; }
+    .launch { display: none; }
+    .heatmap span.launch-day { outline: none; }
+}
 
 .ramp { display: flex; align-items: center; gap: 3px; color: var(--faint); font-size: 11px; }
 .ramp span { margin: 0 4px; }
