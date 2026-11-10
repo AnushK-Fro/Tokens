@@ -77,6 +77,8 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 button { font: inherit; color: inherit; }
 
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius); }
+/* No focus ring after a click or tap (Chrome draws one on SVG shapes); keyboard focus keeps it. */
+:focus:not(:focus-visible) { outline: none; }
 
 /* ---------- layout ---------- */
 
@@ -340,7 +342,8 @@ h2 { font: 500 15px/1.3 var(--font-sans); color: var(--highlight); }
 .grid-line { stroke: var(--line); stroke-width: 1; }
 .base-line { stroke: var(--line-strong); stroke-width: 1; }
 .hit { fill: transparent; cursor: crosshair; }
-.hit:hover { fill: rgba(172, 202, 252, 0.05); }
+.hit:hover, .hit:focus-visible { fill: rgba(172, 202, 252, 0.05); }
+.hit:focus-visible { outline: none; }
 
 .empty { color: var(--faint); padding: 32px 0; text-align: center; }
 
@@ -370,7 +373,7 @@ h2 { font: 500 15px/1.3 var(--font-sans); color: var(--highlight); }
 .heatmap.has-launches { padding-top: calc(var(--launch-rows, 1) * 12px + 6px); }
 .launch {
     position: absolute;
-    top: calc(var(--row) * 12px);
+    top: calc(var(--row) * 12px - var(--lift, 0px));
     bottom: 0;
     left: calc((100% - 52 * var(--gap)) / 53 * var(--col) + var(--gap) * var(--col) - var(--gap) / 2 - 0.5px);
     width: 1px;
@@ -398,13 +401,6 @@ h2 { font: 500 15px/1.3 var(--font-sans); color: var(--highlight); }
 .launch-label.flip { left: auto; right: 5px; }
 .launch-label:hover { color: var(--text); }
 .heatmap span.launch-day { outline: 1px solid var(--muted); outline-offset: 1px; }
-
-/* Too narrow for the labels to sit apart on phones, so no launch markers there. */
-@media (max-width: 719px) {
-    .heatmap.has-launches { padding-top: 0; }
-    .launch { display: none; }
-    .heatmap span.launch-day { outline: none; }
-}
 
 .ramp { display: flex; align-items: center; gap: 3px; color: var(--faint); font-size: 11px; }
 .ramp span { margin: 0 4px; }

@@ -28,8 +28,14 @@ function launchMarkers(container, start, today) {
         let row = rowEnds.findIndex((end) => from - LABEL_GAP >= end);
         if (row < 0) row = rowEnds.length;
         rowEnds[row] = from + textWidth;
-        return { day: launch.day, col, row, flip, label: launch.label, name: launch.name };
+        return { day: launch.day, col, row, flip, from, to: from + textWidth, lift: launch.lift ?? 0, label: launch.label, name: launch.name };
     });
+
+    // A lift only applies when no label in the row above overlaps, so it can't run into one.
+    for (const marker of markers) {
+        const above = markers.filter((other) => other.row === marker.row - 1);
+        if (above.some((other) => other.from < marker.to + LABEL_GAP && marker.from < other.to + LABEL_GAP)) marker.lift = 0;
+    }
 
     return { markers, rows: rowEnds.length };
 }
@@ -69,6 +75,8 @@ export function renderHeatmap(rows, today) {
         const node = h('div', { class: 'launch' }, ...labels);
         node.style.setProperty('--col', group[0].col);
         node.style.setProperty('--row', top);
+        const lift = group.find((marker) => marker.row === top).lift;
+        if (lift) node.style.setProperty('--lift', `${lift}px`);
         return node;
     });
 
