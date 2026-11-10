@@ -10,6 +10,7 @@ import { renderDays } from './views/days.js';
 import { renderHeatmap } from './views/heatmap.js';
 import { renderKpis } from './views/kpis.js';
 import { renderModels } from './views/models.js';
+import { renderSpending } from './views/spending.js';
 import { renderTrend } from './views/trend.js';
 
 const REFRESH_MS = 30_000;
@@ -21,6 +22,7 @@ const ui = {
     metric: 'tokens',
     models: { sort: { key: 'total_tokens', dir: -1 }, open: null },
     days: { daysShown: null },
+    spending: { shown: null },
     ...restore(),
 };
 
@@ -66,7 +68,10 @@ function renderFilters(agents) {
 
 function update(changes) {
     Object.assign(ui, changes);
-    if ('range' in changes || 'agent' in changes) ui.days.daysShown = null;
+    if ('range' in changes || 'agent' in changes) {
+        ui.days.daysShown = null;
+        ui.spending.shown = null;
+    }
     persist();
     render();
 }
@@ -96,6 +101,16 @@ function render() {
     });
     renderComposition(rangeTotals, rangeLabel);
     renderAgents(filterRows(rows, { start, end: today, agent: 'all' }));
+    renderSpending({
+        payments: data.payments ?? [],
+        start: range.days ? start : null,
+        end: today,
+        agent: ui.agent,
+        apiCost: rangeTotals.cost_usd,
+        rangeLabel,
+        ui: ui.spending,
+        onChange: render,
+    });
     renderTrend({ rows: scoped, start, end: today, metric: ui.metric });
     renderHeatmap(agentRows, today);
     renderModels({ rows: scoped, start, end: today, ui: ui.models, onChange: render });

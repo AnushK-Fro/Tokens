@@ -116,6 +116,33 @@ Use one `--source` id per Cursor account and keep it for every later export of t
 sources are summed, so accounts stack, while the same account under two ids would count twice.
 In use: `cursor-usage-export` (default) and `cursor-usage-export-2`.
 
+## Spending
+
+`payments` holds what was actually paid, one row per charge from each provider's billing page
+(ChatGPT, Claude, Cursor, Kimi, Z.ai, OpenCode Go, OpenRouter, OpenAI API). The dashboard's
+**Spending** panel lists them next to the same range's usage at API prices.
+
+The migration only creates the table; the charges are personal and stay out of git, in a CSV
+(`*.csv` is ignored; `seed/payments.csv` locally):
+
+```text
+paid_on,provider,product,kind,agent,amount_usd,reference,note
+2026-10-28,claude,Claude Max 20x,subscription,claude,200.00,,
+2026-11-06,openrouter,OpenRouter credits,usage,opencode,10.80,R-0001,$10 top-up incl. fee
+```
+
+```sh
+cargo run -p tokens --release -- import-payments seed/payments.csv
+# on the server:
+docker compose run --rm -v "$PWD/seed/payments.csv:/payments.csv:ro" tokens import-payments /payments.csv
+```
+
+`kind` is `subscription` or `usage`; `agent` (the dashboard agent the charge funds), `reference`
+and `note` may be empty. A charge is keyed by provider, date, amount and reference, so re-importing
+is safe: known charges keep their row, a changed product, kind, agent or note is applied, and
+nothing is deleted. Add new charges to the CSV and import it again. `scripts/refresh-seed.sh` also
+carries the rows into `seed/tokens.sql`.
+
 ## Syncing
 
 `crates/cli` is `tokens-cli`, a client that reads Claude Code, Codex, Kimi and OpenCode logs

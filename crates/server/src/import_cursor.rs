@@ -296,7 +296,7 @@ fn dollars(value: &str) -> f64 {
 
 /// RFC 4180: comma-separated, fields optionally double-quoted with `""` as an escaped quote,
 /// quoted fields may span lines, LF or CRLF line endings.
-fn read_csv(text: &str) -> Result<Vec<Vec<String>>> {
+pub(crate) fn read_csv(text: &str) -> Result<Vec<Vec<String>>> {
     let mut records = Vec::new();
     let mut record = Vec::new();
     let mut field = String::new();

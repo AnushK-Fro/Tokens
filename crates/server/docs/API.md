@@ -48,12 +48,27 @@ Public, no key. Every day × agent × model ever recorded, summed across sources
       "total_tokens": 43130421,
       "cost_usd": 61.42
     }
+  ],
+  "payments": [
+    {
+      "paid_on": "2026-10-28",
+      "provider": "claude",
+      "product": "Claude Max 20x",
+      "kind": "subscription",
+      "agent": "claude",
+      "amount_usd": 200.0,
+      "note": ""
+    }
   ]
 }
 ```
 
 Field notes:
 
+- `payments` is what was actually paid (subscriptions, credit top-ups, API invoices), newest
+  first. `provider` is the billing account (`chatgpt`, `claude`, `cursor`, `kimi`, `zai`,
+  `opencode`, `openrouter`, `openai-api`); `agent` is the dashboard agent it funds, or `null`;
+  `kind` is `subscription` or `usage`. Invoice numbers are stored but not served.
 - `model` drops any `provider/` or `org/` prefix (`deepseek/deepseek-v4.1-flash` →
   `deepseek-v4.1-flash`), and rows that then share a name are summed. Storage keeps the name as
   reported.

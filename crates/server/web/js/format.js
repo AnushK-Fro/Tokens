@@ -40,10 +40,12 @@ export function daysBetween(from, to) {
 const longDay = new Intl.DateTimeFormat(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' });
 const shortDay = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
 const monthYear = new Intl.DateTimeFormat(undefined, { month: 'short', year: 'numeric', timeZone: 'UTC' });
+const mediumDate = new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' });
 
 export const readableDay = (day) => longDay.format(parseDay(day));
 export const shortDate = (day) => shortDay.format(parseDay(day));
 export const monthLabel = (day) => monthYear.format(parseDay(day));
+export const mediumDay = (day) => mediumDate.format(parseDay(day));
 
 export function timeAgo(iso) {
     if (!iso) return 'never';

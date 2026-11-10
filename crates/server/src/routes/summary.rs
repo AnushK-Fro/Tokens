@@ -6,10 +6,11 @@ use serde_json::json;
 
 use crate::error::AppError;
 use crate::state::AppState;
-use crate::store::summary;
+use crate::store::{payments, summary};
 
 pub async fn show(State(state): State<AppState>) -> Result<Response, AppError> {
-    let (rows, meta) = tokio::try_join!(summary::daily_usage(&state.pool), summary::meta(&state.pool))?;
+    let (rows, meta, payments) =
+        tokio::try_join!(summary::daily_usage(&state.pool), summary::meta(&state.pool), payments::payments(&state.pool))?;
     let now = Utc::now();
 
     let body = json!({
@@ -20,6 +21,7 @@ pub async fn show(State(state): State<AppState>) -> Result<Response, AppError> {
         "last_sync_at": meta.last_sync_at,
         "retention": meta.retention,
         "daily": rows,
+        "payments": payments,
     });
 
     Ok(([("cache-control", "no-store")], Json(body)).into_response())

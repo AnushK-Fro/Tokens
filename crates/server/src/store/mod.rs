@@ -1,7 +1,8 @@
-//! Database access. `ingest` and `events` write; `summary` is read-only.
+//! Database access. `ingest` and `events` write; `summary` and `payments` are read-only.
 
 pub mod events;
 pub mod ingest;
+pub mod payments;
 pub mod summary;
 
 pub use events::{record_events, UsageEvent};

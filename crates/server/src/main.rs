@@ -3,6 +3,7 @@ mod db;
 mod error;
 mod import;
 mod import_cursor;
+mod import_payments;
 mod ingest;
 mod routes;
 mod state;
@@ -28,7 +29,9 @@ commands:
   import-cursor-csv <path> [--source <id>]
                          merge a Cursor usage export (usage-events-*.csv) as agent `cursor`,
                          summed per day and model; same monotonic merge, safe to re-run.
-                         --source defaults to `cursor-usage-export`; use one id per account";
+                         --source defaults to `cursor-usage-export`; use one id per account
+  import-payments <path> merge a payments CSV (what was actually paid; see README \"Spending\");
+                         safe to re-run, never deletes";
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -72,6 +75,12 @@ async fn main() -> anyhow::Result<()> {
             }
             let path = path.context("import-cursor-csv needs a path\n\n".to_owned() + USAGE)?;
             let summary = import_cursor::from_csv(&pool, &path, &source_id, config.timezone).await?;
+            println!("{summary}");
+            Ok(())
+        }
+        "import-payments" => {
+            let path = args.next().map(PathBuf::from).context("import-payments needs a path\n\n".to_owned() + USAGE)?;
+            let summary = import_payments::from_csv(&pool, &path).await?;
             println!("{summary}");
             Ok(())
         }
