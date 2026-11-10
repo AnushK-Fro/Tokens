@@ -184,6 +184,28 @@ h2 { font: 500 15px/1.3 var(--font-sans); color: var(--highlight); }
     .kpi + .kpi { border-left: 1px solid var(--line); padding-left: 20px; }
 }
 
+/*
+ * A pixel shark lying diagonally over the card's top-right corner, drawn on the pixel grid already
+ * at 45 degrees so nothing is rotated. The sprite is 54 x 49 pixels with the middle of the body at
+ * (23, 21); that point sits on the corner. Near the window edge it moves in so the tail never
+ * makes the page scroll sideways.
+ */
+.kpis-corner { position: relative; --px: 1.5px; }
+
+.shark {
+    position: absolute;
+    top: calc(-21 * var(--px));
+    right: max(calc(-31 * var(--px)), calc((100% - 100vw) / 2 + 4px));
+    width: calc(54 * var(--px));
+    height: calc(49 * var(--px));
+    image-rendering: pixelated;
+    pointer-events: none;
+}
+
+@media (max-width: 719px) {
+    .kpis-corner { --px: 1px; }
+}
+
 .kpi { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .kpi-value { font: 500 22px/1.2 var(--font-sans); letter-spacing: -0.01em; font-variant-numeric: tabular-nums; color: var(--highlight); overflow-wrap: anywhere; margin-top: 2px; }
 .kpi-detail { color: var(--muted); font: 12px var(--font-mono); font-variant-numeric: tabular-nums; }
