@@ -17,7 +17,7 @@ const REFRESH_MS = 30_000;
 const STORAGE_KEY = 'tokens.ui';
 
 const ui = {
-    range: '30d',
+    range: 'all',
     agent: 'all',
     metric: 'tokens',
     models: { sort: { key: 'total_tokens', dir: -1 }, open: null },
