@@ -124,7 +124,7 @@ function renderDetail(cell, model, start, end) {
         items: items.map(({ key, totals: bucket }) => ({
             key,
             segments: CATEGORIES.map((category) => ({ value: bucket[category.key], color: category.color })),
-            tip: () => ({ title: unit === 'day' ? readableDay(key) : `${unit} of ${shortDate(key)}`, lines: categoryLines(bucket, [['Cost', money(bucket.cost_usd)]]) }),
+            tip: () => ({ title: unit === 'day' ? readableDay(key) : `${unit[0].toUpperCase()}${unit.slice(1)} of ${shortDate(key)}`, lines: categoryLines(bucket, [['Cost', money(bucket.cost_usd)]]) }),
         })),
         format: compact,
         tickLabel: (item) => shortDate(item.key),
