@@ -70,6 +70,29 @@ impl Counts {
         self.total_tokens = self.total_tokens.saturating_add(other.total_tokens);
         self.cost_usd += other.cost_usd;
     }
+
+    /// What `self` has beyond `other`, column by column, never below zero.
+    pub fn saturating_sub(&self, other: &Counts) -> Counts {
+        Counts {
+            input_tokens: self.input_tokens.saturating_sub(other.input_tokens),
+            output_tokens: self.output_tokens.saturating_sub(other.output_tokens),
+            cache_read_tokens: self.cache_read_tokens.saturating_sub(other.cache_read_tokens),
+            cache_creation_tokens: self.cache_creation_tokens.saturating_sub(other.cache_creation_tokens),
+            reasoning_tokens: self.reasoning_tokens.saturating_sub(other.reasoning_tokens),
+            total_tokens: self.total_tokens.saturating_sub(other.total_tokens),
+            cost_usd: if self.cost_usd > other.cost_usd + COST_EPSILON { self.cost_usd - other.cost_usd } else { 0.0 },
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.input_tokens == 0
+            && self.output_tokens == 0
+            && self.cache_read_tokens == 0
+            && self.cache_creation_tokens == 0
+            && self.reasoning_tokens == 0
+            && self.total_tokens == 0
+            && self.cost_usd <= COST_EPSILON
+    }
 }
 
 /// Input tokens that were not served from cache.
@@ -130,6 +153,13 @@ mod tests {
         // Legacy row that never recorded the cache split stays as reported.
         let unsplit = Counts { input_tokens: 110, output_tokens: 5, total_tokens: 115, ..Counts::default() };
         assert_eq!(uncached_input(&unsplit), 110);
+    }
+
+    #[test]
+    fn subtraction_stops_at_zero() {
+        let rest = counts(100, 10, 110, 1.0).saturating_sub(&counts(40, 20, 60, 1.5));
+        assert_eq!(rest, counts(60, 0, 50, 0.0));
+        assert!(counts(5, 5, 10, 0.5).saturating_sub(&counts(5, 5, 10, 0.5)).is_empty());
     }
 
     #[test]

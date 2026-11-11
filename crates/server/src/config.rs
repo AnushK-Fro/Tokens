@@ -9,7 +9,7 @@ pub struct Config {
     pub bind: SocketAddr,
     /// Bearer token sync clients send to `/api/ingest`. Ingest is refused when unset.
     pub ingest_token: Option<String>,
-    /// Zone that decides what "today" is on the dashboard.
+    /// Zone stored days are counted in, and the dashboard's zone when a request names none.
     pub timezone: Tz,
 }
 

@@ -1,9 +1,11 @@
 //! Reading usage for the dashboard. Source names and projects never appear in these results.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use chrono::{DateTime, NaiveDate, Utc};
+use chrono_tz::Tz;
 use serde::Serialize;
+use sqlx::mysql::MySqlRow;
 use sqlx::{MySqlPool, Row};
 
 use crate::usage::{uncached_input, Counts};
@@ -42,9 +44,78 @@ pub struct Meta {
     pub retention: Retention,
 }
 
-pub async fn daily_usage(pool: &MySqlPool) -> sqlx::Result<Vec<DailyModelUsage>> {
-    let records = sqlx::query(
-        "SELECT day, CAST(agent AS CHAR) AS agent, CAST(model AS CHAR) AS model,
+/// Every day × agent × model, with days counted in `view`.
+///
+/// `daily_usage` rows are already days: sync clients bucket them in `recorded` (the server's
+/// `TOKEN_USAGE_TIMEZONE`) and they can't be split again. Where per-request events exist, those
+/// requests are moved to their day in `view`; whatever a stored row has beyond its events (history
+/// from before events were sent, or a higher ccusage figure) stays on the day it was recorded.
+pub async fn daily_usage(pool: &MySqlPool, recorded: Tz, view: Tz) -> sqlx::Result<Vec<DailyModelUsage>> {
+    let days = stored_days(pool).await?;
+    let events = if view == recorded { Vec::new() } else { event_buckets(pool).await? };
+    Ok(merge_same_names(rebucket(days, events, recorded, view)))
+}
+
+/// Seconds per event bucket. Every zone in use is offset from UTC by a multiple of 15 minutes, so
+/// a bucket never straddles midnight in any of them.
+const BUCKET_SECONDS: i64 = 900;
+
+/// One stored row, before sources are summed.
+struct StoredDay {
+    source_id: String,
+    day: NaiveDate,
+    agent: String,
+    model: String,
+    counts: Counts,
+}
+
+/// Requests of one source, agent and model within one 15-minute bucket.
+struct EventBucket {
+    source_id: String,
+    agent: String,
+    model: String,
+    start: DateTime<Utc>,
+    counts: Counts,
+}
+
+fn counts_from(record: &MySqlRow) -> sqlx::Result<Counts> {
+    Ok(Counts {
+        input_tokens: record.try_get("input_tokens")?,
+        output_tokens: record.try_get("output_tokens")?,
+        cache_read_tokens: record.try_get("cache_read_tokens")?,
+        cache_creation_tokens: record.try_get("cache_creation_tokens")?,
+        reasoning_tokens: record.try_get("reasoning_tokens")?,
+        total_tokens: record.try_get("total_tokens")?,
+        cost_usd: record.try_get("cost_usd")?,
+    })
+}
+
+async fn stored_days(pool: &MySqlPool) -> sqlx::Result<Vec<StoredDay>> {
+    sqlx::query(
+        "SELECT CAST(source_id AS CHAR) AS source_id, day, CAST(agent AS CHAR) AS agent, CAST(model AS CHAR) AS model,
+            input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens, reasoning_tokens, total_tokens, cost_usd
+         FROM daily_usage",
+    )
+    .fetch_all(pool)
+    .await?
+    .iter()
+    .map(|record| {
+        Ok(StoredDay {
+            source_id: record.try_get("source_id")?,
+            day: record.try_get("day")?,
+            agent: record.try_get("agent")?,
+            model: record.try_get("model")?,
+            counts: counts_from(record)?,
+        })
+    })
+    .collect()
+}
+
+async fn event_buckets(pool: &MySqlPool) -> sqlx::Result<Vec<EventBucket>> {
+    // The pool's session zone is UTC, so UNIX_TIMESTAMP reads occurred_at as stored.
+    sqlx::query(
+        "SELECT CAST(source_id AS CHAR) AS source_id, CAST(agent AS CHAR) AS agent, CAST(model AS CHAR) AS model,
+            CAST(FLOOR(UNIX_TIMESTAMP(occurred_at) / ?) AS SIGNED) AS bucket,
             CAST(SUM(input_tokens) AS UNSIGNED) AS input_tokens,
             CAST(SUM(output_tokens) AS UNSIGNED) AS output_tokens,
             CAST(SUM(cache_read_tokens) AS UNSIGNED) AS cache_read_tokens,
@@ -52,43 +123,66 @@ pub async fn daily_usage(pool: &MySqlPool) -> sqlx::Result<Vec<DailyModelUsage>>
             CAST(SUM(reasoning_tokens) AS UNSIGNED) AS reasoning_tokens,
             CAST(SUM(total_tokens) AS UNSIGNED) AS total_tokens,
             SUM(cost_usd) AS cost_usd
-         FROM daily_usage
-         GROUP BY day, agent, model
-         ORDER BY day, total_tokens DESC",
+         FROM usage_events
+         GROUP BY source_id, agent, model, bucket",
     )
+    .bind(BUCKET_SECONDS)
     .fetch_all(pool)
-    .await?;
-
-    let rows = records
-        .into_iter()
-        .map(|record| {
-            let counts = Counts {
-                input_tokens: record.try_get("input_tokens")?,
-                output_tokens: record.try_get("output_tokens")?,
-                cache_read_tokens: record.try_get("cache_read_tokens")?,
-                cache_creation_tokens: record.try_get("cache_creation_tokens")?,
-                reasoning_tokens: record.try_get("reasoning_tokens")?,
-                total_tokens: record.try_get("total_tokens")?,
-                cost_usd: record.try_get("cost_usd")?,
-            };
-
-            let model: String = record.try_get("model")?;
-            Ok(DailyModelUsage {
-                day: record.try_get("day")?,
-                agent: record.try_get("agent")?,
-                model: display_model(&model).to_owned(),
-                input_tokens: uncached_input(&counts),
-                output_tokens: counts.output_tokens,
-                cache_read_tokens: counts.cache_read_tokens,
-                cache_creation_tokens: counts.cache_creation_tokens,
-                reasoning_tokens: counts.reasoning_tokens,
-                total_tokens: counts.total_tokens,
-                cost_usd: counts.cost_usd,
-            })
+    .await?
+    .iter()
+    .map(|record| {
+        let bucket: i64 = record.try_get("bucket")?;
+        Ok(EventBucket {
+            source_id: record.try_get("source_id")?,
+            agent: record.try_get("agent")?,
+            model: record.try_get("model")?,
+            start: DateTime::from_timestamp(bucket * BUCKET_SECONDS, 0).unwrap_or_default(),
+            counts: counts_from(record)?,
         })
-        .collect::<sqlx::Result<Vec<_>>>()?;
+    })
+    .collect()
+}
 
-    Ok(merge_same_names(rows))
+/// Sums stored days and events into days of `view`; see [`daily_usage`].
+fn rebucket(days: Vec<StoredDay>, events: Vec<EventBucket>, recorded: Tz, view: Tz) -> Vec<DailyModelUsage> {
+    let mut covered: HashMap<(String, String, NaiveDate, String), Counts> = HashMap::new();
+    let mut totals: BTreeMap<(NaiveDate, String, String), Counts> = BTreeMap::new();
+
+    for event in events {
+        let recorded_day = event.start.with_timezone(&recorded).date_naive();
+        let view_day = event.start.with_timezone(&view).date_naive();
+        covered.entry((event.source_id, event.agent.clone(), recorded_day, event.model.clone())).or_default().add(&event.counts);
+        totals.entry((view_day, event.agent, event.model)).or_default().add(&event.counts);
+    }
+
+    for stored in days {
+        let mut counts = stored.counts;
+        counts.input_tokens = uncached_input(&counts);
+        let rest = match covered.get(&(stored.source_id, stored.agent.clone(), stored.day, stored.model.clone())) {
+            Some(seen) => counts.saturating_sub(seen),
+            None => counts,
+        };
+        if !rest.is_empty() {
+            totals.entry((stored.day, stored.agent, stored.model)).or_default().add(&rest);
+        }
+    }
+
+    totals
+        .into_iter()
+        .filter(|(_, counts)| !counts.is_empty())
+        .map(|((day, agent, model), counts)| DailyModelUsage {
+            day,
+            agent,
+            model: display_model(&model).to_owned(),
+            input_tokens: counts.input_tokens,
+            output_tokens: counts.output_tokens,
+            cache_read_tokens: counts.cache_read_tokens,
+            cache_creation_tokens: counts.cache_creation_tokens,
+            reasoning_tokens: counts.reasoning_tokens,
+            total_tokens: counts.total_tokens,
+            cost_usd: counts.cost_usd,
+        })
+        .collect()
 }
 
 /// The name a model is shown under: provider and org prefixes dropped, so
@@ -146,6 +240,49 @@ mod tests {
             total_tokens: total,
             cost_usd: cost,
         }
+    }
+
+    fn tokens(total: u64) -> Counts {
+        Counts { input_tokens: total, total_tokens: total, cost_usd: total as f64 / 100.0, ..Counts::default() }
+    }
+
+    fn stored(day: &str, total: u64) -> StoredDay {
+        StoredDay { source_id: "a".into(), day: day.parse().unwrap(), agent: "claude".into(), model: "opus".into(), counts: tokens(total) }
+    }
+
+    fn event(at: &str, total: u64) -> EventBucket {
+        EventBucket { source_id: "a".into(), agent: "claude".into(), model: "opus".into(), start: at.parse().unwrap(), counts: tokens(total) }
+    }
+
+    fn by_day(rows: &[DailyModelUsage]) -> Vec<(String, u64)> {
+        rows.iter().map(|row| (row.day.to_string(), row.total_tokens)).collect()
+    }
+
+    #[test]
+    fn events_move_to_the_viewers_day() {
+        // Nov 10 UTC: 30 tokens at 02:00 UTC (Nov 9 evening in New York) and 70 at 15:00.
+        let days = vec![stored("2026-11-10", 100)];
+        let events = vec![event("2026-11-10T02:00:00Z", 30), event("2026-11-10T15:00:00Z", 70)];
+        let rows = rebucket(days, events, Tz::UTC, Tz::America__New_York);
+        assert_eq!(by_day(&rows), vec![("2026-11-09".into(), 30), ("2026-11-10".into(), 70)]);
+    }
+
+    #[test]
+    fn usage_without_events_stays_on_its_recorded_day() {
+        // 40 of Nov 10's 100 tokens have events; the other 60 (purged before events were sent)
+        // stay on Nov 10, as does Nov 9, which has no events at all.
+        let days = vec![stored("2026-11-09", 50), stored("2026-11-10", 100)];
+        let events = vec![event("2026-11-10T01:00:00Z", 40)];
+        let rows = rebucket(days, events, Tz::UTC, Tz::America__New_York);
+        assert_eq!(by_day(&rows), vec![("2026-11-09".into(), 90), ("2026-11-10".into(), 60)]);
+        let total: u64 = rows.iter().map(|row| row.total_tokens).sum();
+        assert_eq!(total, 150);
+    }
+
+    #[test]
+    fn events_ahead_of_the_daily_sync_still_count() {
+        let rows = rebucket(Vec::new(), vec![event("2026-11-10T23:30:00Z", 10)], Tz::UTC, Tz::Asia__Kolkata);
+        assert_eq!(by_day(&rows), vec![("2026-11-11".into(), 10)]);
     }
 
     #[test]

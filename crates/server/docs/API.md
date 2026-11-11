@@ -23,6 +23,9 @@ This document, as Markdown.
 
 Public, no key. Every day × agent × model ever recorded, summed across sources.
 
+Query: `tz` (optional), an IANA zone such as `Europe/London`, to count days and `today` in. The
+dashboard sends the browser's zone. Missing or unknown: the server's `TOKEN_USAGE_TIMEZONE`.
+
 ```json
 {
   "generated_at": "2026-11-10T02:30:00Z",
@@ -72,7 +75,10 @@ Field notes:
 - `model` drops any `provider/` or `org/` prefix (`deepseek/deepseek-v4.1-flash` →
   `deepseek-v4.1-flash`), and rows that then share a name are summed. Storage keeps the name as
   reported.
-- `today` is in the server's `timezone`; use it rather than the client clock for "today" figures.
+- `timezone` is the zone days are counted in (`tz`, or the server's); `today` is today there.
+- Days are re-counted in `tz` only where per-request events exist (pushed by tokens-cli). Usage
+  without them (older history, ccusage-only sources, Cursor imports) stays on the day its sync
+  client recorded, in the server's `TOKEN_USAGE_TIMEZONE`.
 - `input_tokens` is **uncached** input for every agent. Older Codex reports counted cached reads
   inside input; those are separated here so cached reads appear only in `cache_read_tokens`.
 - `reasoning_tokens` is a subset of `output_tokens`, not an extra category.
