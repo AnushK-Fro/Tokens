@@ -1,7 +1,7 @@
 import { fetchSummary } from './api.js';
 import { filterRows, RANGES, rangeStart, sum } from './aggregate.js';
 import { h, mount } from './dom.js';
-import { daysBetween, money, timeAgo } from './format.js';
+import { daysBetween, timeAgo } from './format.js';
 import { agentLabel, logo } from './icons.js';
 import { renderAgents } from './views/agents.js';
 import { onResize } from './views/bars.js';
@@ -116,13 +116,11 @@ function render() {
     renderModels({ rows: scoped, start, end: today, ui: ui.models, onChange: render });
     renderDays({ rows: scoped, ui: ui.days, onChange: render });
 
-    const kept = data.retention.preserved_rows > 0;
     mount('#footer-meta', [
         `${data.source_count} source${data.source_count === 1 ? '' : 's'}`,
         `last sync ${timeAgo(data.last_sync_at)}`,
-        kept ? `${money(data.retention.preserved_cost_usd)} kept that ccusage forgot` : null,
         data.timezone,
-    ].filter(Boolean).join(' · '));
+    ].join(' · '));
 }
 
 async function refresh() {

@@ -10,6 +10,7 @@ const PROVIDERS = {
     chatgpt: { label: 'ChatGPT', logo: 'openai' },
     claude: { label: 'Claude', logo: 'claude' },
     cursor: { label: 'Cursor', logo: 'cursor' },
+    devin: { label: 'Devin', logo: 'devin' },
     kimi: { label: 'Kimi', logo: 'kimi' },
     zai: { label: 'Z.ai', logo: 'zai' },
     opencode: { label: 'OpenCode Go', logo: 'opencode' },
