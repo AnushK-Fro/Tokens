@@ -15,8 +15,13 @@ use crate::event::Event;
 const URL: &str = "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json";
 const MAX_AGE: Duration = Duration::from_secs(24 * 60 * 60);
 
-/// Agent model names that LiteLLM lists under another name.
-const ALIASES: &[(&str, &str)] = &[("k3", "moonshot/kimi-k3"), ("kimi-for-coding", "moonshot/kimi-k2-thinking")];
+/// Agent model names that LiteLLM lists under another name. LiteLLM has DeepSeek V4.1 Flash only
+/// under resellers; OpenCode Go's entry charges DeepSeek's own V4 Flash rates.
+const ALIASES: &[(&str, &str)] = &[
+    ("k3", "moonshot/kimi-k3"),
+    ("kimi-for-coding", "moonshot/kimi-k2-thinking"),
+    ("deepseek-v4.1-flash", "opencode_go/deepseek-v4.1-flash"),
+];
 
 pub struct Prices {
     models: Map<String, Value>,
@@ -165,12 +170,14 @@ mod tests {
             "gpt-6-sol": { "input_cost_per_token": 1.0 },
             "daybreak-blue-latest": { "input_cost_per_token": 1.0 },
             "moonshot/kimi-k3": { "input_cost_per_token": 1.0 },
-            "anthropic/claude-x": { "input_cost_per_token": 1.0 }
+            "anthropic/claude-x": { "input_cost_per_token": 1.0 },
+            "opencode_go/deepseek-v4.1-flash": { "input_cost_per_token": 1.0 }
         }));
         assert_eq!(p.resolve("gpt-6-sol-2026-09-22").as_deref(), Some("gpt-6-sol"));
         assert_eq!(p.resolve("gpt-daybreak-blue-latest").as_deref(), Some("daybreak-blue-latest"));
         assert_eq!(p.resolve("k3").as_deref(), Some("moonshot/kimi-k3"));
         assert_eq!(p.resolve("claude-x").as_deref(), Some("anthropic/claude-x"));
+        assert_eq!(p.resolve("deepseek/deepseek-v4.1-flash").as_deref(), Some("opencode_go/deepseek-v4.1-flash"));
         assert_eq!(p.resolve("nothing-like-it"), None);
     }
 
